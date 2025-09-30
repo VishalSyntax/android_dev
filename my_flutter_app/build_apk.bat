@@ -1,0 +1,1 @@
+& "c:\Github_projects\Andoid Dev\flutter\bin\flutter.bat" build apk
