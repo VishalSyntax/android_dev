@@ -379,11 +379,11 @@ class _PlaceBinPageState extends State<PlaceBinPage> {
   int _selectedBoxNumber = 1;
   
   final List<String> _colors = ['White', 'Yellow', 'Blue', 'Green', 'Red'];
-  final List<Color> _colorValues = [Colors.grey[300]!, Colors.yellow, Colors.blue, Colors.green, Colors.red];
+  final List<Color> _colorValues = [Colors.grey[300]!, Colors.yellow, Colors.blue[800]!, Colors.green[800]!, Colors.red];
   
   String _getCurrentQRData() {
     String colorKey = '${_colors[_selectedColorIndex]}_$_selectedBoxNumber';
-    return widget.qrCodes[colorKey] ?? 'No QR defined for ${_colors[_selectedColorIndex]} Box $_selectedBoxNumber';
+    return widget.qrCodes[colorKey] ?? 'No QR defined for ${_colors[_selectedColorIndex]} Bin $_selectedBoxNumber';
   }
 
   @override
@@ -423,7 +423,7 @@ class _PlaceBinPageState extends State<PlaceBinPage> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      '${_colors[_selectedColorIndex]} Box $_selectedBoxNumber',
+                      '${_colors[_selectedColorIndex]} Bin $_selectedBoxNumber',
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -482,8 +482,8 @@ class _PlaceBinPageState extends State<PlaceBinPage> {
                 
                 const SizedBox(height: 20),
                 
-                // Box Number Selection (Horizontal Scroll)
-                const Text('Select Box Number:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                // Bin Number Selection (Horizontal Scroll)
+                const Text('Select Bin Number:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 60,
@@ -822,7 +822,7 @@ class _SettingsPageState extends State<SettingsPage> {
       widget.onPlaceBinUpdate(updated);
       _placeBinController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('QR added for $_selectedColor Box $_selectedBoxNumber!')),
+        SnackBar(content: Text('QR added for $_selectedColor Bin $_selectedBoxNumber!')),
       );
     }
   }
@@ -853,7 +853,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            const Text('Place Bin QR Codes (35 boxes)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Place Bin QR Codes (35 bins)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             
             // Color Selection
@@ -878,18 +878,18 @@ class _SettingsPageState extends State<SettingsPage> {
             
             const SizedBox(height: 10),
             
-            // Box Number Selection
+            // Bin Number Selection
             DropdownButtonFormField<int>(
               value: _selectedBoxNumber,
               decoration: const InputDecoration(
-                labelText: 'Select Box Number',
+                labelText: 'Select Bin Number',
                 border: OutlineInputBorder(),
               ),
               items: List.generate(7, (index) {
                 int boxNumber = index + 1;
                 return DropdownMenuItem(
                   value: boxNumber,
-                  child: Text('Box $boxNumber'),
+                  child: Text('Bin $boxNumber'),
                 );
               }),
               onChanged: (value) {
@@ -908,7 +908,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: TextField(
                     controller: _placeBinController,
                     decoration: InputDecoration(
-                      labelText: 'QR text for $_selectedColor Box $_selectedBoxNumber',
+                      labelText: 'QR text for $_selectedColor Bin $_selectedBoxNumber',
                       border: const OutlineInputBorder(),
                     ),
                   ),
