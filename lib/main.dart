@@ -36,6 +36,7 @@ class _MainPageState extends State<MainPage> {
   List<String> savedQRs = [];
   Map<String, String> placeBinQRs = {};
   Map<String, String> bagQRs = {};
+  Map<String, List<String>> qrFolders = {'Default': []};
 
   @override
   void initState() {
@@ -54,9 +55,13 @@ class _MainPageState extends State<MainPage> {
         
         String bagData = prefs.getString('bagQRs') ?? '{}';
         bagQRs = Map<String, String>.from(json.decode(bagData));
+        
+        String folderData = prefs.getString('qrFolders') ?? '{"Default":[]}';
+        Map<String, dynamic> decodedFolders = json.decode(folderData);
+        qrFolders = decodedFolders.map((key, value) => MapEntry(key, List<String>.from(value)));
       });
       
-      print('Data loaded - SavedQRs: ${savedQRs.length}, PlaceBin: ${placeBinQRs.length}, Bags: ${bagQRs.length}');
+      print('Data loaded - SavedQRs: ${savedQRs.length}, PlaceBin: ${placeBinQRs.length}, Bags: ${bagQRs.length}, Folders: ${qrFolders.length}');
     } catch (e) {
       print('Error loading data: $e');
       // If data is corrupted, reset to empty
@@ -64,6 +69,7 @@ class _MainPageState extends State<MainPage> {
         savedQRs = [];
         placeBinQRs = {};
         bagQRs = {};
+        qrFolders = {'Default': []};
       });
     }
   }
@@ -74,8 +80,9 @@ class _MainPageState extends State<MainPage> {
       await prefs.setStringList('savedQRs', savedQRs);
       await prefs.setString('placeBinQRs', json.encode(placeBinQRs));
       await prefs.setString('bagQRs', json.encode(bagQRs));
+      await prefs.setString('qrFolders', json.encode(qrFolders));
       
-      print('Data saved - SavedQRs: ${savedQRs.length}, PlaceBin: ${placeBinQRs.length}, Bags: ${bagQRs.length}');
+      print('Data saved - SavedQRs: ${savedQRs.length}, PlaceBin: ${placeBinQRs.length}, Bags: ${bagQRs.length}, Folders: ${qrFolders.length}');
     } catch (e) {
       print('Error saving data: $e');
     }
@@ -96,6 +103,27 @@ class _MainPageState extends State<MainPage> {
   void _deleteQR(int index) {
     setState(() {
       savedQRs.removeAt(index);
+    });
+    _saveData();
+  }
+
+  void _createFolder(String folderName) {
+    if (folderName.isNotEmpty && !qrFolders.containsKey(folderName)) {
+      setState(() {
+        qrFolders[folderName] = [];
+      });
+      _saveData();
+    }
+  }
+
+  void _moveQRToFolder(String qrData, String folderName) {
+    setState(() {
+      if (savedQRs.contains(qrData)) {
+        savedQRs.remove(qrData);
+      }
+      if (!qrFolders[folderName]!.contains(qrData)) {
+        qrFolders[folderName]!.add(qrData);
+      }
     });
     _saveData();
   }
@@ -214,7 +242,13 @@ class _MainPageState extends State<MainPage> {
           QRGeneratorPage(onSave: _saveQR),
           BagsPage(qrCodes: bagQRs),
           PlaceBinPage(qrCodes: placeBinQRs),
-          SavedQRPage(savedQRs: savedQRs, onDelete: _deleteQR),
+          SavedQRPage(
+            savedQRs: savedQRs, 
+            qrFolders: qrFolders,
+            onDelete: _deleteQR,
+            onCreateFolder: _createFolder,
+            onMoveToFolder: _moveQRToFolder,
+          ),
           SettingsPage(
             placeBinQRs: placeBinQRs,
             bagQRs: bagQRs,
@@ -535,78 +569,209 @@ class _PlaceBinPageState extends State<PlaceBinPage> {
 }
 
 
-class SavedQRPage extends StatelessWidget {
+class SavedQRPage extends StatefulWidget {
   final List<String> savedQRs;
+  final Map<String, List<String>> qrFolders;
   final Function(int) onDelete;
-  const SavedQRPage({super.key, required this.savedQRs, required this.onDelete});
+  final Function(String) onCreateFolder;
+  final Function(String, String) onMoveToFolder;
+  
+  const SavedQRPage({
+    super.key, 
+    required this.savedQRs, 
+    required this.qrFolders,
+    required this.onDelete,
+    required this.onCreateFolder,
+    required this.onMoveToFolder,
+  });
+
+  @override
+  State<SavedQRPage> createState() => _SavedQRPageState();
+}
+
+class _SavedQRPageState extends State<SavedQRPage> {
+  String _selectedFolder = 'Saved QRs';
+  
+  void _showCreateFolderDialog() {
+    final TextEditingController controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create New Folder'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Folder Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                widget.onCreateFolder(controller.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMoveToFolderDialog(String qrData) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Move to Folder'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: widget.qrFolders.keys.map((folderName) {
+            return ListTile(
+              title: Text(folderName),
+              onTap: () {
+                widget.onMoveToFolder(qrData, folderName);
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    List<String> currentQRs = _selectedFolder == 'Saved QRs' 
+        ? widget.savedQRs 
+        : widget.qrFolders[_selectedFolder] ?? [];
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Saved QR'),
+        title: Text(_selectedFolder),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.create_new_folder),
+            onPressed: _showCreateFolderDialog,
+          ),
+        ],
       ),
-      body: savedQRs.isEmpty
-          ? const Center(child: Text('No saved QR codes'))
-          : ListView.builder(
-              itemCount: savedQRs.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.qr_code),
-                    title: Text(savedQRs[index]),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          child: QrImageView(
-                            data: savedQRs[index],
-                            size: 50,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => onDelete(index),
-                        ),
-                      ],
-                    ),
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('QR Code'),
-                          content: Column(
+      body: Column(
+        children: [
+          // Folder Selection
+          Container(
+            height: 50,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildFolderTab('Saved QRs'),
+                ...widget.qrFolders.keys.map((folder) => _buildFolderTab(folder)),
+              ],
+            ),
+          ),
+          
+          // QR List
+          Expanded(
+            child: currentQRs.isEmpty
+                ? const Center(child: Text('No QR codes in this folder'))
+                : ListView.builder(
+                    itemCount: currentQRs.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.qr_code),
+                          title: Text(currentQRs[index]),
+                          trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              QrImageView(
-                                data: savedQRs[index],
-                                version: QrVersions.auto,
-                                size: 250.0,
+                              Container(
+                                width: 50,
+                                height: 50,
+                                child: QrImageView(
+                                  data: currentQRs[index],
+                                  size: 50,
+                                ),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                savedQRs[index],
-                                style: const TextStyle(fontSize: 14),
-                                textAlign: TextAlign.center,
+                              if (_selectedFolder == 'Saved QRs')
+                                IconButton(
+                                  icon: const Icon(Icons.folder, color: Colors.blue),
+                                  onPressed: () => _showMoveToFolderDialog(currentQRs[index]),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => widget.onDelete(index),
                               ),
                             ],
                           ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Close'),
-                            ),
-                          ],
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('QR Code'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    QrImageView(
+                                      data: currentQRs[index],
+                                      version: QrVersions.auto,
+                                      size: 250.0,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      currentQRs[index],
+                                      style: const TextStyle(fontSize: 14),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Close'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       );
                     },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFolderTab(String folderName) {
+    bool isSelected = _selectedFolder == folderName;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedFolder = folderName;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          folderName,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 }
