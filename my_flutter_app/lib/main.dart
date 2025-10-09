@@ -34,6 +34,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
   List<String> savedQRs = [];
+  Map<String, String> qrTitles = {};
   Map<String, String> placeBinQRs = {};
   Map<String, String> bagQRs = {};
   Map<String, List<String>> qrFolders = {'Default': []};
@@ -49,6 +50,9 @@ class _MainPageState extends State<MainPage> {
       final prefs = await SharedPreferences.getInstance();
       setState(() {
         savedQRs = prefs.getStringList('savedQRs') ?? [];
+        
+        String titleData = prefs.getString('qrTitles') ?? '{}';
+        qrTitles = Map<String, String>.from(json.decode(titleData));
         
         String placeBinData = prefs.getString('placeBinQRs') ?? '{}';
         placeBinQRs = Map<String, String>.from(json.decode(placeBinData));
@@ -67,6 +71,7 @@ class _MainPageState extends State<MainPage> {
       // If data is corrupted, reset to empty
       setState(() {
         savedQRs = [];
+        qrTitles = {};
         placeBinQRs = {};
         bagQRs = {};
         qrFolders = {'Default': []};
@@ -78,6 +83,7 @@ class _MainPageState extends State<MainPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('savedQRs', savedQRs);
+      await prefs.setString('qrTitles', json.encode(qrTitles));
       await prefs.setString('placeBinQRs', json.encode(placeBinQRs));
       await prefs.setString('bagQRs', json.encode(bagQRs));
       await prefs.setString('qrFolders', json.encode(qrFolders));
@@ -102,7 +108,22 @@ class _MainPageState extends State<MainPage> {
 
   void _deleteQR(int index) {
     setState(() {
-      savedQRs.removeAt(index);
+      String qrData = savedQRs.removeAt(index);
+      qrTitles.remove(qrData);
+    });
+    _saveData();
+  }
+
+  void _updateQR(String oldQR, String newQR, String title) {
+    setState(() {
+      int index = savedQRs.indexOf(oldQR);
+      if (index != -1) {
+        savedQRs[index] = newQR;
+        qrTitles.remove(oldQR);
+      }
+      if (title.isNotEmpty) {
+        qrTitles[newQR] = title;
+      }
     });
     _saveData();
   }
@@ -133,6 +154,7 @@ class _MainPageState extends State<MainPage> {
       final prefs = await SharedPreferences.getInstance();
       Map<String, dynamic> allData = {
         'savedQRs': savedQRs,
+        'qrTitles': qrTitles,
         'placeBinQRs': placeBinQRs,
         'bagQRs': bagQRs,
         'qrFolders': qrFolders,
@@ -207,6 +229,9 @@ class _MainPageState extends State<MainPage> {
                   if (importedData['savedQRs'] != null) {
                     savedQRs = List<String>.from(importedData['savedQRs']);
                   }
+                  if (importedData['qrTitles'] != null) {
+                    qrTitles = Map<String, String>.from(importedData['qrTitles']);
+                  }
                   if (importedData['placeBinQRs'] != null) {
                     placeBinQRs = Map<String, String>.from(importedData['placeBinQRs']);
                   }
@@ -248,9 +273,11 @@ class _MainPageState extends State<MainPage> {
           BagsPage(qrCodes: bagQRs),
           PlaceBinPage(qrCodes: placeBinQRs),
           SavedQRPage(
-            savedQRs: savedQRs, 
+            savedQRs: savedQRs,
+            qrTitles: qrTitles,
             qrFolders: qrFolders,
             onDelete: _deleteQR,
+            onUpdate: _updateQR,
             onCreateFolder: _createFolder,
             onMoveToFolder: _moveQRToFolder,
           ),
@@ -576,16 +603,20 @@ class _PlaceBinPageState extends State<PlaceBinPage> {
 
 class SavedQRPage extends StatefulWidget {
   final List<String> savedQRs;
+  final Map<String, String> qrTitles;
   final Map<String, List<String>> qrFolders;
   final Function(int) onDelete;
+  final Function(String, String, String) onUpdate;
   final Function(String) onCreateFolder;
   final Function(String, String) onMoveToFolder;
   
   const SavedQRPage({
     super.key, 
-    required this.savedQRs, 
+    required this.savedQRs,
+    required this.qrTitles,
     required this.qrFolders,
     required this.onDelete,
+    required this.onUpdate,
     required this.onCreateFolder,
     required this.onMoveToFolder,
   });
@@ -650,6 +681,54 @@ class _SavedQRPageState extends State<SavedQRPage> {
     );
   }
 
+  void _showEditQRDialog(String qrData) {
+    final TextEditingController qrController = TextEditingController(text: qrData);
+    final TextEditingController titleController = TextEditingController(text: widget.qrTitles[qrData] ?? '');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit QR Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title (Optional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: qrController,
+              decoration: const InputDecoration(
+                labelText: 'QR Data',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (qrController.text.isNotEmpty) {
+                widget.onUpdate(qrData, qrController.text, titleController.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<String> currentQRs = _selectedFolder == 'Saved QRs' 
@@ -688,10 +767,13 @@ class _SavedQRPageState extends State<SavedQRPage> {
                 : ListView.builder(
                     itemCount: currentQRs.length,
                     itemBuilder: (context, index) {
+                      String qrData = currentQRs[index];
+                      String title = widget.qrTitles[qrData] ?? '';
                       return Card(
                         child: ListTile(
                           leading: const Icon(Icons.qr_code),
-                          title: Text(currentQRs[index]),
+                          title: Text(title.isNotEmpty ? title : qrData),
+                          subtitle: title.isNotEmpty ? Text(qrData, style: TextStyle(fontSize: 12, color: Colors.grey)) : null,
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -699,14 +781,18 @@ class _SavedQRPageState extends State<SavedQRPage> {
                                 width: 50,
                                 height: 50,
                                 child: QrImageView(
-                                  data: currentQRs[index],
+                                  data: qrData,
                                   size: 50,
                                 ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.green),
+                                onPressed: () => _showEditQRDialog(qrData),
                               ),
                               if (_selectedFolder == 'Saved QRs')
                                 IconButton(
                                   icon: const Icon(Icons.folder, color: Colors.blue),
-                                  onPressed: () => _showMoveToFolderDialog(currentQRs[index]),
+                                  onPressed: () => _showMoveToFolderDialog(qrData),
                                 ),
                               IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red),
@@ -718,18 +804,18 @@ class _SavedQRPageState extends State<SavedQRPage> {
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('QR Code'),
+                                title: Text(title.isNotEmpty ? title : 'QR Code'),
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     QrImageView(
-                                      data: currentQRs[index],
+                                      data: qrData,
                                       version: QrVersions.auto,
                                       size: 250.0,
                                     ),
                                     const SizedBox(height: 10),
                                     Text(
-                                      currentQRs[index],
+                                      qrData,
                                       style: const TextStyle(fontSize: 14),
                                       textAlign: TextAlign.center,
                                     ),
