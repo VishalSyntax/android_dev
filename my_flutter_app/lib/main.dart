@@ -38,6 +38,7 @@ class _MainPageState extends State<MainPage> {
   Map<String, String> placeBinQRs = {};
   Map<String, String> bagQRs = {};
   Map<String, List<String>> qrFolders = {'Default': []};
+  List<String> folderOrder = ['Saved QRs', 'Default'];
 
   @override
   void initState() {
@@ -63,6 +64,9 @@ class _MainPageState extends State<MainPage> {
         String folderData = prefs.getString('qrFolders') ?? '{"Default":[]}';
         Map<String, dynamic> decodedFolders = json.decode(folderData);
         qrFolders = decodedFolders.map((key, value) => MapEntry(key, List<String>.from(value)));
+        
+        String orderData = prefs.getString('folderOrder') ?? '["Saved QRs","Default"]';
+        folderOrder = List<String>.from(json.decode(orderData));
       });
       
       print('Data loaded - SavedQRs: ${savedQRs.length}, PlaceBin: ${placeBinQRs.length}, Bags: ${bagQRs.length}, Folders: ${qrFolders.length}');
@@ -75,6 +79,7 @@ class _MainPageState extends State<MainPage> {
         placeBinQRs = {};
         bagQRs = {};
         qrFolders = {'Default': []};
+        folderOrder = ['Saved QRs', 'Default'];
       });
     }
   }
@@ -87,6 +92,7 @@ class _MainPageState extends State<MainPage> {
       await prefs.setString('placeBinQRs', json.encode(placeBinQRs));
       await prefs.setString('bagQRs', json.encode(bagQRs));
       await prefs.setString('qrFolders', json.encode(qrFolders));
+      await prefs.setString('folderOrder', json.encode(folderOrder));
       
       print('Data saved - SavedQRs: ${savedQRs.length}, PlaceBin: ${placeBinQRs.length}, Bags: ${bagQRs.length}, Folders: ${qrFolders.length}');
     } catch (e) {
@@ -114,6 +120,18 @@ class _MainPageState extends State<MainPage> {
     _saveData();
   }
 
+  void _deleteQRFromFolder(String qrData, String folderName) {
+    setState(() {
+      if (folderName == 'Saved QRs') {
+        savedQRs.remove(qrData);
+      } else {
+        qrFolders[folderName]?.remove(qrData);
+      }
+      qrTitles.remove(qrData);
+    });
+    _saveData();
+  }
+
   void _updateQR(String oldQR, String newQR, String title) {
     setState(() {
       int index = savedQRs.indexOf(oldQR);
@@ -132,9 +150,44 @@ class _MainPageState extends State<MainPage> {
     if (folderName.isNotEmpty && !qrFolders.containsKey(folderName)) {
       setState(() {
         qrFolders[folderName] = [];
+        folderOrder.add(folderName);
       });
       _saveData();
     }
+  }
+
+  void _deleteFolder(String folderName) {
+    if (folderName != 'Default') {
+      setState(() {
+        qrFolders.remove(folderName);
+        folderOrder.remove(folderName);
+      });
+      _saveData();
+    }
+  }
+
+  void _renameFolder(String oldName, String newName) {
+    if (oldName != 'Default' && newName.isNotEmpty && !qrFolders.containsKey(newName)) {
+      setState(() {
+        List<String> qrs = qrFolders[oldName] ?? [];
+        qrFolders.remove(oldName);
+        qrFolders[newName] = qrs;
+        int index = folderOrder.indexOf(oldName);
+        if (index != -1) {
+          folderOrder[index] = newName;
+        }
+      });
+      _saveData();
+    }
+  }
+
+  void _reorderFolders(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex--;
+      final item = folderOrder.removeAt(oldIndex);
+      folderOrder.insert(newIndex, item);
+    });
+    _saveData();
   }
 
   void _moveQRToFolder(String qrData, String folderName) {
@@ -158,6 +211,7 @@ class _MainPageState extends State<MainPage> {
         'placeBinQRs': placeBinQRs,
         'bagQRs': bagQRs,
         'qrFolders': qrFolders,
+        'folderOrder': folderOrder,
         'exportDate': DateTime.now().toIso8601String(),
       };
       
@@ -242,6 +296,9 @@ class _MainPageState extends State<MainPage> {
                     Map<String, dynamic> importedFolders = importedData['qrFolders'];
                     qrFolders = importedFolders.map((key, value) => MapEntry(key, List<String>.from(value)));
                   }
+                  if (importedData['folderOrder'] != null) {
+                    folderOrder = List<String>.from(importedData['folderOrder']);
+                  }
                 });
                 
                 await _saveData();
@@ -276,9 +333,14 @@ class _MainPageState extends State<MainPage> {
             savedQRs: savedQRs,
             qrTitles: qrTitles,
             qrFolders: qrFolders,
+            folderOrder: folderOrder,
             onDelete: _deleteQR,
+            onDeleteFromFolder: _deleteQRFromFolder,
             onUpdate: _updateQR,
             onCreateFolder: _createFolder,
+            onDeleteFolder: _deleteFolder,
+            onRenameFolder: _renameFolder,
+            onReorderFolders: _reorderFolders,
             onMoveToFolder: _moveQRToFolder,
           ),
           SettingsPage(
@@ -605,9 +667,14 @@ class SavedQRPage extends StatefulWidget {
   final List<String> savedQRs;
   final Map<String, String> qrTitles;
   final Map<String, List<String>> qrFolders;
+  final List<String> folderOrder;
   final Function(int) onDelete;
+  final Function(String, String) onDeleteFromFolder;
   final Function(String, String, String) onUpdate;
   final Function(String) onCreateFolder;
+  final Function(String) onDeleteFolder;
+  final Function(String, String) onRenameFolder;
+  final Function(int, int) onReorderFolders;
   final Function(String, String) onMoveToFolder;
   
   const SavedQRPage({
@@ -615,9 +682,14 @@ class SavedQRPage extends StatefulWidget {
     required this.savedQRs,
     required this.qrTitles,
     required this.qrFolders,
+    required this.folderOrder,
     required this.onDelete,
+    required this.onDeleteFromFolder,
     required this.onUpdate,
     required this.onCreateFolder,
+    required this.onDeleteFolder,
+    required this.onRenameFolder,
+    required this.onReorderFolders,
     required this.onMoveToFolder,
   });
 
@@ -729,6 +801,99 @@ class _SavedQRPageState extends State<SavedQRPage> {
     );
   }
 
+  void _showFolderOptionsDialog(String folderName) {
+    if (folderName == 'Saved QRs') return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Folder: $folderName'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Rename'),
+              onTap: () {
+                Navigator.pop(context);
+                _showRenameFolderDialog(folderName);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteFolderDialog(folderName);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRenameFolderDialog(String oldName) {
+    final TextEditingController controller = TextEditingController(text: oldName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Folder'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Folder Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty && controller.text != oldName) {
+                widget.onRenameFolder(oldName, controller.text);
+                if (_selectedFolder == oldName) {
+                  setState(() => _selectedFolder = controller.text);
+                }
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteFolderDialog(String folderName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Folder'),
+        content: Text('Are you sure you want to delete "$folderName"? All QR codes in this folder will be lost.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              widget.onDeleteFolder(folderName);
+              if (_selectedFolder == folderName) {
+                setState(() => _selectedFolder = 'Saved QRs');
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<String> currentQRs = _selectedFolder == 'Saved QRs' 
@@ -751,12 +916,12 @@ class _SavedQRPageState extends State<SavedQRPage> {
           // Folder Selection
           Container(
             height: 50,
-            child: ListView(
+            child: ReorderableListView(
               scrollDirection: Axis.horizontal,
-              children: [
-                _buildFolderTab('Saved QRs'),
-                ...widget.qrFolders.keys.map((folder) => _buildFolderTab(folder)),
-              ],
+              onReorder: widget.onReorderFolders,
+              children: widget.folderOrder.map((folderName) {
+                return _buildFolderTab(folderName, Key(folderName));
+              }).toList(),
             ),
           ),
           
@@ -796,7 +961,13 @@ class _SavedQRPageState extends State<SavedQRPage> {
                                 ),
                               IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => widget.onDelete(index),
+                                onPressed: () {
+                                  if (_selectedFolder == 'Saved QRs') {
+                                    widget.onDelete(index);
+                                  } else {
+                                    widget.onDeleteFromFolder(qrData, _selectedFolder);
+                                  }
+                                },
                               ),
                             ],
                           ),
@@ -840,14 +1011,16 @@ class _SavedQRPageState extends State<SavedQRPage> {
     );
   }
 
-  Widget _buildFolderTab(String folderName) {
+  Widget _buildFolderTab(String folderName, Key key) {
     bool isSelected = _selectedFolder == folderName;
     return GestureDetector(
+      key: key,
       onTap: () {
         setState(() {
           _selectedFolder = folderName;
         });
       },
+      onDoubleTap: () => _showFolderOptionsDialog(folderName),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         margin: const EdgeInsets.all(4),
