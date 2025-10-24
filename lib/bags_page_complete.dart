@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BagsPage extends StatefulWidget {
   final Map<String, String> qrCodes;
@@ -14,6 +15,24 @@ class _BagsPageState extends State<BagsPage> {
   int _selectedSizeIndex = 0;
   final TextEditingController _bulkController1 = TextEditingController();
   final TextEditingController _bulkController2 = TextEditingController();
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadBulkData();
+  }
+  
+  Future<void> _loadBulkData() async {
+    final prefs = await SharedPreferences.getInstance();
+    _bulkController1.text = prefs.getString('bulkQR1') ?? '';
+    _bulkController2.text = prefs.getString('bulkQR2') ?? '';
+  }
+  
+  Future<void> _saveBulkData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('bulkQR1', _bulkController1.text);
+    await prefs.setString('bulkQR2', _bulkController2.text);
+  }
   
   final List<String> _bagTypes = ['Regular Bags', 'Reusable Bags', 'Small Reusable Bags', 'Insulated Bags'];
   
@@ -178,6 +197,7 @@ class _BagsPageState extends State<BagsPage> {
                     border: OutlineInputBorder(),
                     hintText: 'Paste codes here (each line or space creates new QR)',
                   ),
+                  onChanged: (value) => _saveBulkData(),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
@@ -203,6 +223,7 @@ class _BagsPageState extends State<BagsPage> {
                     border: OutlineInputBorder(),
                     hintText: 'Paste codes here (each line or space creates new QR)',
                   ),
+                  onChanged: (value) => _saveBulkData(),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
