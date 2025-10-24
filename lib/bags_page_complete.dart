@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:barcode_widget/barcode_widget.dart';
 
 class BagsPage extends StatefulWidget {
   final Map<String, String> qrCodes;
@@ -214,21 +215,21 @@ class _BagsPageState extends State<BagsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Bulk QR Code Generator 2', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Bulk Barcode Generator 2', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _bulkController2,
                   maxLines: 5,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    hintText: 'Paste codes here (each line or space creates new QR)',
+                    hintText: 'Paste codes here (each line or space creates new barcode)',
                   ),
                   onChanged: (value) => _saveBulkData(),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
-                  onPressed: () => _showBulkQRDialog(_bulkController2.text, 'Bulk QR Generator 2'),
-                  child: const Text('Generate Bulk QR'),
+                  onPressed: () => _showBulkBarcodeDialog(_bulkController2.text, 'Bulk Barcode Generator 2'),
+                  child: const Text('Generate Bulk Barcode'),
                 ),
               ],
             ),
@@ -286,6 +287,63 @@ class _BagsPageState extends State<BagsPage> {
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBulkBarcodeDialog(String inputText, String title) {
+    if (inputText.trim().isEmpty) return;
+    
+    List<String> codes = inputText.split(RegExp(r'[\s\n]+'))
+        .where((code) => code.trim().isNotEmpty)
+        .map((code) => code.trim())
+        .toList();
+    
+    if (codes.isEmpty) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Container(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView.builder(
+            itemCount: codes.length,
+            itemBuilder: (context, index) {
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    BarcodeWidget(
+                      barcode: Barcode.code128(),
+                      data: codes[index],
+                      height: 60,
+                      drawText: false,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      codes[index],
+                      style: const TextStyle(fontSize: 12),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
