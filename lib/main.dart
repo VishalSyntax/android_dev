@@ -408,6 +408,49 @@ class QRGeneratorPage extends StatefulWidget {
 class _QRGeneratorPageState extends State<QRGeneratorPage> {
   final TextEditingController _textController = TextEditingController();
   String _qrData = '';
+  bool _showSpeedometer = false;
+  String _selectedAlpha1 = 'A';
+  int _selectedDigit1 = 1;
+  String _selectedAlpha2 = 'A';
+  int _selectedDigit2 = 1;
+  
+  final List<String> _alpha1Options = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+  final List<int> _digit1Options = List.generate(24, (i) => i + 1);
+  final List<String> _alpha2Options = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  final List<int> _digit2Options = List.generate(7, (i) => i + 1);
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadSpeedometerState();
+  }
+  
+  Future<void> _loadSpeedometerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _showSpeedometer = prefs.getBool('showSpeedometer') ?? false;
+      _selectedAlpha1 = prefs.getString('selectedAlpha1') ?? 'A';
+      _selectedDigit1 = prefs.getInt('selectedDigit1') ?? 1;
+      _selectedAlpha2 = prefs.getString('selectedAlpha2') ?? 'A';
+      _selectedDigit2 = prefs.getInt('selectedDigit2') ?? 1;
+    });
+    if (_showSpeedometer) _generateSpeedometerQR();
+  }
+  
+  Future<void> _saveSpeedometerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('showSpeedometer', _showSpeedometer);
+    await prefs.setString('selectedAlpha1', _selectedAlpha1);
+    await prefs.setInt('selectedDigit1', _selectedDigit1);
+    await prefs.setString('selectedAlpha2', _selectedAlpha2);
+    await prefs.setInt('selectedDigit2', _selectedDigit2);
+  }
+  
+  void _generateSpeedometerQR() {
+    setState(() {
+      _qrData = 'RVT-$_selectedAlpha1-$_selectedDigit1-$_selectedAlpha2-$_selectedDigit2';
+    });
+  }
 
   void _generateQR() {
     setState(() {
@@ -421,6 +464,110 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
       _qrData = '';
     });
   }
+  
+  Widget _buildSpeedometer() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Quick RVT Generator', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showSpeedometer = false;
+                  });
+                  _saveSpeedometerState();
+                },
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              const Text('RVT-', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              _buildWheelSelector(_selectedAlpha1, _alpha1Options, (value) {
+                setState(() {
+                  _selectedAlpha1 = value;
+                  _generateSpeedometerQR();
+                });
+                _saveSpeedometerState();
+              }),
+              const Text('-', style: TextStyle(fontSize: 18)),
+              _buildWheelSelector(_selectedDigit1.toString(), _digit1Options.map((e) => e.toString()).toList(), (value) {
+                setState(() {
+                  _selectedDigit1 = int.parse(value);
+                  _generateSpeedometerQR();
+                });
+                _saveSpeedometerState();
+              }),
+              const Text('-', style: TextStyle(fontSize: 18)),
+              _buildWheelSelector(_selectedAlpha2, _alpha2Options, (value) {
+                setState(() {
+                  _selectedAlpha2 = value;
+                  _generateSpeedometerQR();
+                });
+                _saveSpeedometerState();
+              }),
+              const Text('-', style: TextStyle(fontSize: 18)),
+              _buildWheelSelector(_selectedDigit2.toString(), _digit2Options.map((e) => e.toString()).toList(), (value) {
+                setState(() {
+                  _selectedDigit2 = int.parse(value);
+                  _generateSpeedometerQR();
+                });
+                _saveSpeedometerState();
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildWheelSelector(String currentValue, List<String> options, Function(String) onChanged) {
+    int currentIndex = options.indexOf(currentValue);
+    FixedExtentScrollController controller = FixedExtentScrollController(initialItem: currentIndex);
+    
+    return Container(
+      width: 50,
+      height: 120,
+      child: ListWheelScrollView.useDelegate(
+        controller: controller,
+        itemExtent: 40,
+        perspective: 0.005,
+        diameterRatio: 1.2,
+        physics: const FixedExtentScrollPhysics(),
+        onSelectedItemChanged: (index) {
+          onChanged(options[index]);
+        },
+        childDelegate: ListWheelChildBuilderDelegate(
+          childCount: options.length,
+          builder: (context, index) {
+            return Container(
+              alignment: Alignment.center,
+              child: Text(
+                options[index],
+                style: TextStyle(
+                  fontSize: currentIndex == index ? 18 : 14,
+                  fontWeight: currentIndex == index ? FontWeight.bold : FontWeight.normal,
+                  color: currentIndex == index ? Colors.blue : Colors.grey,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -428,11 +575,34 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
       appBar: AppBar(
         title: const Text('Zepto QR'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _showSpeedometer = !_showSpeedometer;
+                if (_showSpeedometer) _generateSpeedometerQR();
+              });
+              _saveSpeedometerState();
+            },
+            icon: Icon(_showSpeedometer ? Icons.keyboard : Icons.speed),
+            tooltip: _showSpeedometer ? 'Text Input' : 'RVT Generator',
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
+      body: GestureDetector(
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity! < -500) {
+            setState(() {
+              _showSpeedometer = true;
+              _generateSpeedometerQR();
+            });
+            _saveSpeedometerState();
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
             Expanded(
               flex: 2,
               child: Center(
@@ -459,6 +629,12 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
                               size: 200.0,
                             ),
                             const SizedBox(height: 10),
+                            Text(
+                              _qrData,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 10),
                             ElevatedButton.icon(
                               onPressed: () => widget.onSave(_qrData),
                               icon: const Icon(Icons.save),
@@ -468,42 +644,47 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
                         ),
                       )
                     : const Text(
-                        'Enter text below to generate QR code',
+                        'Enter text below to generate QR code\n\nSwipe left for quick RVT generator',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey,
                         ),
+                        textAlign: TextAlign.center,
                       ),
               ),
             ),
             const SizedBox(height: 20),
-            TextField(
-              controller: _textController,
-              decoration: const InputDecoration(
-                labelText: 'Enter text to generate QR code',
-                border: OutlineInputBorder(),
-                hintText: 'Type your text here...',
+            if (!_showSpeedometer) ...[
+              TextField(
+                controller: _textController,
+                decoration: const InputDecoration(
+                  labelText: 'Enter text to generate QR code',
+                  border: OutlineInputBorder(),
+                  hintText: 'Type your text here...',
+                ),
+                maxLines: 3,
+                onChanged: (value) => _generateQR(),
               ),
-              maxLines: 3,
-              onChanged: (value) => _generateQR(),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _generateQR,
-                    child: const Text('Generate QR'),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _generateQR,
+                      child: const Text('Generate QR'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _clearText,
-                  child: const Text('Clear'),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _clearText,
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ),
+            ],
+            if (_showSpeedometer) _buildSpeedometer(),
+            ],
+          ),
         ),
       ),
     );
