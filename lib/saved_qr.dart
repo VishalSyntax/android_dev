@@ -253,6 +253,11 @@ class _SavedQRPageState extends State<SavedQRPage> {
             icon: const Icon(Icons.create_new_folder),
             onPressed: _showCreateFolderDialog,
           ),
+          if (_selectedFolder != 'Saved QRs' && _selectedFolder != 'Default')
+            IconButton(
+              icon: const Icon(Icons.delete_forever, color: Colors.red),
+              onPressed: () => _showDeleteFolderDialog(_selectedFolder),
+            ),
         ],
       ),
       body: Column(

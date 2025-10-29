@@ -415,7 +415,7 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
   int _selectedDigit2 = 1;
   
   final List<String> _alpha1Options = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-  final List<int> _digit1Options = List.generate(24, (i) => i + 1);
+  final List<int> _digit1Options = List.generate(28, (i) => i + 1);
   final List<String> _alpha2Options = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
   final List<int> _digit2Options = List.generate(7, (i) => i + 1);
   
