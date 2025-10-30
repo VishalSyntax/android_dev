@@ -43,11 +43,121 @@ class _MainPageState extends State<MainPage> {
   Map<String, String> bagQRs = {};
   Map<String, List<String>> qrFolders = {'Default': []};
   List<String> folderOrder = ['Saved QRs', 'Default'];
+  bool _isTrialExpired = false;
+  bool _isActivated = false;
 
   @override
   void initState() {
     super.initState();
+    _checkTrialStatus();
     _loadData();
+  }
+  
+  Future<void> _checkTrialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Check if app is already activated
+    _isActivated = prefs.getBool('isActivated') ?? false;
+    if (_isActivated) {
+      setState(() {
+        _isTrialExpired = false;
+      });
+      return;
+    }
+    
+    // Get installation date
+    String? installDateStr = prefs.getString('installDate');
+    DateTime installDate;
+    
+    if (installDateStr == null) {
+      // First time installation
+      installDate = DateTime.now();
+      await prefs.setString('installDate', installDate.toIso8601String());
+    } else {
+      installDate = DateTime.parse(installDateStr);
+    }
+    
+    // Check if trial period (3 days) has expired
+    DateTime now = DateTime.now();
+    int daysDifference = now.difference(installDate).inDays;
+    
+    setState(() {
+      _isTrialExpired = daysDifference >= 3;
+    });
+    
+    if (_isTrialExpired) {
+      _showActivationDialog();
+    }
+  }
+  
+  void _showActivationDialog() {
+    final TextEditingController keyController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Trial Expired'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Your 3-day trial has expired. Please enter activation key to continue.'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: keyController,
+              decoration: const InputDecoration(
+                labelText: 'Activation Key',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _validateActivationKey(keyController.text),
+            child: const Text('Activate'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _validateActivationKey(String key) async {
+    if (key.length < 4) {
+      _showError('Invalid activation key');
+      return;
+    }
+    
+    // Extract last 4 digits
+    String timeCode = key.substring(key.length - 4);
+    
+    // Get current time in HHMM format (24-hour)
+    DateTime now = DateTime.now();
+    String currentTime = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+    
+    // Check if key starts with 'vishal0x' and time matches
+    if (key.startsWith('vishal0x') && timeCode == currentTime) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isActivated', true);
+      
+      setState(() {
+        _isActivated = true;
+        _isTrialExpired = false;
+      });
+      
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('App activated successfully!')),
+      );
+    } else {
+      _showError('Invalid activation key or incorrect time');
+    }
+  }
+  
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   Future<void> _loadData() async {
@@ -342,6 +452,33 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isTrialExpired && !_isActivated) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Trial Expired'),
+          backgroundColor: Colors.red,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock, size: 100, color: Colors.red),
+              SizedBox(height: 20),
+              Text(
+                'Your trial period has expired',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Please activate the app to continue',
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
