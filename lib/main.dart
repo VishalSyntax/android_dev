@@ -77,12 +77,12 @@ class _MainPageState extends State<MainPage> {
       installDate = DateTime.parse(installDateStr);
     }
     
-    // Check if trial period (3 days) has expired
+    // Check if trial period (40 hours) has expired
     DateTime now = DateTime.now();
-    int daysDifference = now.difference(installDate).inDays;
+    int hoursDifference = now.difference(installDate).inHours;
     
     setState(() {
-      _isTrialExpired = daysDifference >= 3;
+      _isTrialExpired = hoursDifference >= 40;
     });
     
     if (_isTrialExpired) {
@@ -101,7 +101,7 @@ class _MainPageState extends State<MainPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Your 3-day trial has expired. Please enter activation key to continue.'),
+            const Text('Your 40-hour trial has expired. Please enter activation key to continue.'),
             const SizedBox(height: 10),
             TextField(
               controller: keyController,
@@ -150,13 +150,68 @@ class _MainPageState extends State<MainPage> {
         const SnackBar(content: Text('App activated successfully!')),
       );
     } else {
-      _showError('Invalid activation key or incorrect time');
+      _showError('Invalid activation key contact the app developer');
     }
   }
   
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+  
+  void _showManualActivationDialog() {
+    if (_isActivated) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Activation Status'),
+          content: const Text('You are already activated!'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
+    final TextEditingController keyController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Manual Activation'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter activation key:'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: keyController,
+              decoration: const InputDecoration(
+                labelText: 'Activation Key',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _validateActivationKey(keyController.text);
+            },
+            child: const Text('Activate'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -521,12 +576,18 @@ class _MainPageState extends State<MainPage> {
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: 'Bags'),
-          BottomNavigationBarItem(icon: Icon(Icons.delete), label: 'Place Bin'),
-          BottomNavigationBarItem(icon: Icon(Icons.save), label: 'Saved QR'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: 'Bags'),
+          const BottomNavigationBarItem(icon: Icon(Icons.delete), label: 'Place Bin'),
+          const BottomNavigationBarItem(icon: Icon(Icons.save), label: 'Saved QR'),
+          BottomNavigationBarItem(
+            icon: GestureDetector(
+              onLongPress: _showManualActivationDialog,
+              child: const Icon(Icons.settings),
+            ),
+            label: 'Settings',
+          ),
         ],
       ),
     );
