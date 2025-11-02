@@ -101,7 +101,7 @@ class _MainPageState extends State<MainPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Your 40-hour trial has expired. Please enter activation key to continue.'),
+            const Text('Please enter activation key to continue.'),
             const SizedBox(height: 10),
             TextField(
               controller: keyController,

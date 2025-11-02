@@ -49,10 +49,16 @@ class _SettingsPageState extends State<SettingsPage> {
       updated[key] = _placeBinController.text;
       widget.onPlaceBinUpdate(updated);
       _placeBinController.clear();
+      _updatePlaceBinController();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('QR added for $_selectedColor Bin $_selectedBoxNumber!')),
       );
     }
+  }
+  
+  void _updatePlaceBinController() {
+    String key = '${_selectedColor}_$_selectedBoxNumber';
+    _placeBinController.text = widget.placeBinQRs[key] ?? '';
   }
 
   void _addBagQR() {
@@ -62,10 +68,16 @@ class _SettingsPageState extends State<SettingsPage> {
       updated[key] = _bagController.text;
       widget.onBagUpdate(updated);
       _bagController.clear();
+      _updateBagController();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('QR added for $_selectedBagType - $_selectedBagSize!')),
       );
     }
+  }
+  
+  void _updateBagController() {
+    String key = '${_selectedBagType}_$_selectedBagSize';
+    _bagController.text = widget.bagQRs[key] ?? '';
   }
 
   @override
@@ -100,6 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: (value) {
                 setState(() {
                   _selectedColor = value!;
+                  _updatePlaceBinController();
                 });
               },
             ),
@@ -123,6 +136,7 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: (value) {
                 setState(() {
                   _selectedBoxNumber = value!;
+                  _updatePlaceBinController();
                 });
               },
             ),
@@ -170,6 +184,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 setState(() {
                   _selectedBagType = value!;
                   _selectedBagSize = _bagSizes[_selectedBagType]![0]; // Reset to first option
+                  _updateBagController();
                 });
               },
             ),
@@ -192,6 +207,7 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: (value) {
                 setState(() {
                   _selectedBagSize = value!;
+                  _updateBagController();
                 });
               },
             ),
@@ -296,6 +312,8 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _selectedBagSize = _bagSizes[_selectedBagType]![0];
+    _updatePlaceBinController();
+    _updateBagController();
   }
   
   Future<void> _launchUrl(String url) async {
