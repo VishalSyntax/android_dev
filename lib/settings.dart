@@ -82,6 +82,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Always update controllers with current QR data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updatePlaceBinController();
+      _updateBagController();
+    });
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
