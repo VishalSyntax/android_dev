@@ -12,7 +12,7 @@ class BagsPage extends StatefulWidget {
 }
 
 class _BagsPageState extends State<BagsPage> {
-  String _selectedBagType = 'Regular Bags';
+  String _selectedBagType = 'Paper Bags';
   int _selectedSizeIndex = 0;
   final TextEditingController _bulkController1 = TextEditingController();
   final TextEditingController _bulkController2 = TextEditingController();
@@ -35,10 +35,11 @@ class _BagsPageState extends State<BagsPage> {
     await prefs.setString('bulkQR2', _bulkController2.text);
   }
   
-  final List<String> _bagTypes = ['Regular Bags', 'Reusable Bags', 'Small Reusable Bags', 'Insulated Bags'];
+  final List<String> _bagTypes = ['Paper Bags', 'Compostable Bags', 'Reusable Bags', 'Small Reusable Bags', 'Insulated Bags'];
   
   final Map<String, List<String>> _bagSizes = {
-    'Regular Bags': ['VS', 'GS', 'GM', 'GL', 'GXL', 'GXXL'],
+    'Paper Bags': ['VS', 'GS', 'GM', 'GL', 'GXL', 'GXXL'],
+    'Compostable Bags': ['Small', 'Medium', 'Large', 'Extra'],
     'Reusable Bags': ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'],
     'Small Reusable Bags': ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'],
     'Insulated Bags': ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'],
@@ -107,7 +108,7 @@ class _BagsPageState extends State<BagsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                Text('Select ${_selectedBagType == 'Regular Bags' ? 'Size' : 'Number'}:', 
+                Text('Select ${(_selectedBagType == 'Paper Bags' || _selectedBagType == 'Compostable Bags') ? 'Size' : 'Number'}:', 
                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 SizedBox(
