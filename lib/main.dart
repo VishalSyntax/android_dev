@@ -604,8 +604,8 @@ class QRGeneratorPage extends StatefulWidget {
 }
 
 class _QRGeneratorPageState extends State<QRGeneratorPage> {
-  final TextEditingController _textController = TextEditingController();
-  String _qrData = '';
+  final TextEditingController _textController = TextEditingController(text: 'RVT-E-7');
+  String _qrData = 'RVT-E-7';
   bool _showSpeedometer = false;
   String _selectedAlpha1 = 'A';
   int _selectedDigit1 = 1;
@@ -645,8 +645,10 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
   }
   
   void _generateSpeedometerQR() {
+    String newQR = 'RVT-$_selectedAlpha1-$_selectedDigit1-$_selectedAlpha2-$_selectedDigit2';
     setState(() {
-      _qrData = 'RVT-$_selectedAlpha1-$_selectedDigit1-$_selectedAlpha2-$_selectedDigit2';
+      _qrData = newQR;
+      _textController.text = newQR;
     });
   }
 
@@ -681,6 +683,7 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
                 onPressed: () {
                   setState(() {
                     _showSpeedometer = false;
+                    _qrData = _textController.text.trim();
                   });
                   _saveSpeedometerState();
                 },
@@ -770,6 +773,7 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Zepto QR'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -797,12 +801,13 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
             _saveSpeedometerState();
           }
         },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-            Expanded(
-              flex: 2,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+            Container(
+              height: 350,
               child: Center(
                 child: _qrData.isNotEmpty
                     ? Container(
@@ -881,7 +886,9 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
               ),
             ],
             if (_showSpeedometer) _buildSpeedometer(),
-            ],
+            SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+              ],
+            ),
           ),
         ),
       ),

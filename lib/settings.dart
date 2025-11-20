@@ -57,6 +57,17 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
   
+  void _clearPlaceBinQR() {
+    String key = '${_selectedColor}_$_selectedBoxNumber';
+    Map<String, String> updated = Map.from(widget.placeBinQRs);
+    updated.remove(key);
+    widget.onPlaceBinUpdate(updated);
+    _placeBinController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('QR cleared for $_selectedColor Bin $_selectedBoxNumber!')),
+    );
+  }
+  
   void _updatePlaceBinController() {
     String key = '${_selectedColor}_$_selectedBoxNumber';
     _placeBinController.text = widget.placeBinQRs[key] ?? '';
@@ -74,6 +85,17 @@ class _SettingsPageState extends State<SettingsPage> {
         SnackBar(content: Text('QR added for $_selectedBagType - $_selectedBagSize!')),
       );
     }
+  }
+  
+  void _clearBagQR() {
+    String key = '${_selectedBagType}_$_selectedBagSize';
+    Map<String, String> updated = Map.from(widget.bagQRs);
+    updated.remove(key);
+    widget.onBagUpdate(updated);
+    _bagController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('QR cleared for $_selectedBagType - $_selectedBagSize!')),
+    );
   }
   
   void _updateBagController() {
@@ -167,6 +189,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   onPressed: _addPlaceBinQR,
                   child: const Text('Add'),
                 ),
+                const SizedBox(width: 5),
+                ElevatedButton(
+                  onPressed: _clearPlaceBinQR,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Clear', style: TextStyle(color: Colors.white)),
+                ),
               ],
             ),
             
@@ -237,6 +265,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 ElevatedButton(
                   onPressed: _addBagQR,
                   child: const Text('Add'),
+                ),
+                const SizedBox(width: 5),
+                ElevatedButton(
+                  onPressed: _clearBagQR,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Clear', style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
